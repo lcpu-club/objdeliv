@@ -7,7 +7,7 @@ import (
 type DriverConfigure map[string]interface{}
 type DriverFactory func(conf DriverConfigure) (Driver, error)
 
-var drivers map[string]DriverFactory
+var drivers map[string]DriverFactory = make(map[string]DriverFactory)
 
 var ErrDriverNotFound error = fmt.Errorf("Driver not found")
 

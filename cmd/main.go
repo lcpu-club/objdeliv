@@ -2,11 +2,22 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"os"
 
+	"github.com/lcpu-club/objdeliv/server"
+	"github.com/lcpu-club/objdeliv/storage"
+	_ "github.com/lcpu-club/objdeliv/storage/drivers"
 	"github.com/urfave/cli/v2"
+	"gopkg.in/yaml.v2"
 )
+
+type configure struct {
+	Listen        string                  `yaml:"listen"`
+	Driver        string                  `yaml:"driver"`
+	DriverOptions storage.DriverConfigure `yaml:"driver-options"`
+}
 
 func main() {
 	app := &cli.App{
@@ -40,8 +51,47 @@ func main() {
 			},
 		},
 		Action: func(ctx *cli.Context) error {
-			// TODO: implement the server launching code
-			return nil
+			confText, err := os.ReadFile(ctx.String("config"))
+			var listen, driver string = "", ""
+			var driverOptions storage.DriverConfigure = nil
+			if err == nil {
+				log.Println("Using configure file", ctx.String("config"))
+				conf := &configure{
+					DriverOptions: make(storage.DriverConfigure),
+				}
+				err := yaml.Unmarshal(confText, conf)
+				if err != nil {
+					return err
+				}
+				listen = conf.Listen
+				driver = conf.Driver
+				driverOptions = conf.DriverOptions
+			}
+			if err != nil && !os.IsNotExist(err) {
+				return err
+			}
+			if ctx.String("listen") != "" {
+				listen = ctx.String("listen")
+			}
+			if ctx.String("driver") != "" {
+				driver = ctx.String("driver")
+			}
+			if ctx.String("driver-options") != "" {
+				json.Unmarshal([]byte(ctx.String("driver-options")), &driverOptions)
+			}
+			log.Println("Storage driver type:	", driver)
+			optionText, err := json.Marshal(driverOptions)
+			if err != nil {
+				return err
+			}
+			log.Println("Storage driver options:	", string(optionText))
+			log.Println("Listen address:		", listen)
+			drv, err := storage.NewDriver(driver, driverOptions)
+			if err != nil {
+				return err
+			}
+			srv := server.New(listen, drv)
+			return srv.Serve()
 		},
 	}
 	if err := app.Run(os.Args); err != nil {

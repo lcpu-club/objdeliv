@@ -1,3 +1,4 @@
 listen: :24032
-storage:
-  driver: LocalDriver
+driver: MemoryDriver
+driver-options:
+  path: ./dev-temp
