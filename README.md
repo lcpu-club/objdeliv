@@ -13,10 +13,12 @@ First install golang building environment.
 Then run:
 
 ```sh
-go build cmd/main.go -o objdeliv
+go -o objdeliv build cmd/main.go
 ```
 
 Move `objdeliv` to `$PATH` and you can use it now.
+
+If you have `just` installed, you can use `just` to build and run, `just build` to build, `just run` to run and `just build-cross` to build for different targets.
 
 ## Example
 
@@ -125,4 +127,79 @@ Only one, `path`, stands for the storage path. If not exist, the program will au
 
 ## Protocol
 
-TODO
+### 1. Create an object
+
+This is not standard HTTP!
+
+First client establishes a TCP connection and send a package `"CONNECT /new-object HTTP/1.1\r\n\r\n"` to the server.
+
+Note: like HTTP, you can send query params in the URL. You can send: `id` and `expire`.
+
+If you send `id`, you need to promise it is a valid UUID string. We will use that instead of generating a new one.
+
+Then the server responses in JSON, with two fields, `status` and `id`. `status` should be `success`. The `id` is a UUID string, used to identify the object.
+
+Then you just write your stuff into the socket connection and it works. When finished, just feel free to close the connection.
+
+A sample SDK in PHP:
+
+```php
+<?php
+
+class ObjDelivClient
+{
+    protected $conn;
+    protected string $id = '';
+
+    public function __construct(string $addr, ?string $id = null, ?int $expire = null)
+    {
+        $this->conn = fsockopen($addr);
+        $endpoint = '/new-object?';
+        if ($id !== null) {
+            $endpoint .= 'id=' . urlencode($id);
+            if ($expire !== null) $endpoint .= '&';
+        }
+        if ($expire !== null) {
+            $endpoint .= 'expire=' . $expire;
+        }
+        $pkt = "CONNECT $endpoint HTTP/1.1\r\n\r\n";
+        fwrite($this->conn, $pkt);
+        $this->id = json_decode(fgets($this->conn), 1)['id'];
+    }
+
+    public function getID(): string
+    {
+        return $this->id;
+    }
+
+    public function write(string $bytes): int
+    {
+        return fwrite($this->conn, $bytes);
+    }
+
+    public function __destruct()
+    {
+        fclose($this->conn);
+    }
+}
+```
+
+### 2. Get an Object
+
+Just GET `/get-object?id=[THE_ID]&auto-release=[true/false]&content-type=[CONTENT_TYPE]&content-disposition=[CONTENT_DISPOSITION]&pragma=[PRAGMA]&cache-control=[CACHE_CONTROL]&expires=[EXPIRES]`
+
+If `auto-release` is `true`, after the request the object will be released.
+
+The other parameters are all HTTP response headers that could be customized.
+
+### 3. Release an Object
+
+Just GET `/release-object?id=[THE_ID]`.
+
+Response is in JSON format.
+
+### 4. Set Expire Time for an Object
+
+Just GET `/set-expire?id=[THE_ID]&expire=[EXPIRE_TIME_IN_SECONDS]`.
+
+Response is in JSON format.
