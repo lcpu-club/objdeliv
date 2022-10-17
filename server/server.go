@@ -172,52 +172,6 @@ func (s *Server) serveGet(resp http.ResponseWriter, req *http.Request) {
 func (s *Server) serveConnect(resp http.ResponseWriter, req *http.Request) {
 	var id uuid.UUID
 	var expire time.Duration = time.Duration(s.defaultExpire) * time.Second
-	if req.URL.Query().Has("id") {
-		var err error
-		id, err = uuid.FromString(req.URL.Query().Get("id"))
-		if err != nil {
-			resp.WriteHeader(400)
-			resp.Write([]byte("400 Bad Request\r\n\r\nInvalid ID given.\r\n"))
-			return
-		}
-		ok, err := s.storageDriver.IsExist(id)
-		if ok || err != nil {
-			resp.WriteHeader(400)
-			resp.Write([]byte("400 Bad Request\r\n\r\nID given already exists.\r\n"))
-			return
-		}
-	} else {
-		i := 1
-	CREATE_UUID:
-		id = uuid.NewV4()
-		ok, err := s.storageDriver.IsExist(id)
-		if err != nil {
-			resp.WriteHeader(500)
-			resp.Write([]byte("500 Internal Server Error\r\n\r\nAn internal error occurred.\r\n"))
-			log.Println("[Error] StorageDriver returns error " + err.Error())
-			return
-		}
-		if ok {
-			i++
-			if i > 10 {
-				log.Println("The driver keeps telling us the key exists. It may be broken. Stops trying.")
-				resp.WriteHeader(500)
-				resp.Write([]byte("500 Internal Server Error\r\n\r\nAn internal error occurred.\r\n"))
-				return
-			}
-			goto CREATE_UUID
-		}
-	}
-	if req.URL.Query().Has("expire") {
-		exp := req.URL.Query().Get("expire")
-		e, err := strconv.Atoi(exp)
-		if err != nil {
-			resp.WriteHeader(400)
-			resp.Write([]byte("400 Bad Request\r\n\r\nInvalid expire duration.\r\n"))
-			return
-		}
-		expire = time.Duration(e) * time.Second
-	}
 	hijacker, ok := resp.(http.Hijacker)
 	if !ok {
 		resp.WriteHeader(400)
@@ -229,6 +183,52 @@ func (s *Server) serveConnect(resp http.ResponseWriter, req *http.Request) {
 		resp.WriteHeader(500)
 		resp.Write([]byte("500 Internal Server Error\r\n\r\nAn error occurred when establishing connection.\r\n"))
 		return
+	}
+	if req.URL.Query().Has("id") {
+		var err error
+		id, err = uuid.FromString(req.URL.Query().Get("id"))
+		if err != nil {
+			conn.Write([]byte("{\"status\":\"error\",\"message\":\"Invalid ID.\"}\r\n"))
+			conn.Close()
+			return
+		}
+		ok, err := s.storageDriver.IsExist(id)
+		if ok || err != nil {
+			conn.Write([]byte("{\"status\":\"error\",\"message\":\"ID already exists.\"}\r\n"))
+			conn.Close()
+			return
+		}
+	} else {
+		i := 1
+	CREATE_UUID:
+		id = uuid.NewV4()
+		ok, err := s.storageDriver.IsExist(id)
+		if err != nil {
+			conn.Write([]byte("{\"status\":\"error\",\"message\":\"Internal Error\"}\r\n"))
+			conn.Close()
+			log.Println("[Error] StorageDriver returns error " + err.Error())
+			return
+		}
+		if ok {
+			i++
+			if i > 10 {
+				log.Println("The driver keeps telling us the key exists. It may be broken. Stops trying.")
+				conn.Write([]byte("{\"status\":\"error\",\"message\":\"Internal Error\"}\r\n"))
+				conn.Close()
+				return
+			}
+			goto CREATE_UUID
+		}
+	}
+	if req.URL.Query().Has("expire") {
+		exp := req.URL.Query().Get("expire")
+		e, err := strconv.Atoi(exp)
+		if err != nil {
+			conn.Write([]byte("{\"status\":\"error\",\"message\":\"Invalid expire duration.\"}\r\n"))
+			conn.Close()
+			return
+		}
+		expire = time.Duration(e) * time.Second
 	}
 	defer conn.Close()
 	_, err = conn.Write([]byte("{\"status\":\"success\",\"id\":\"" + id.String() + "\"}\r\n"))
@@ -244,6 +244,7 @@ func (s *Server) serveConnect(resp http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		log.Println(err)
 		conn.Write([]byte("{\"status\":\"error\",\"message\":\"object creation failed\"}\r\n"))
+		conn.Close()
 		return
 	}
 	defer func() {
@@ -260,18 +261,21 @@ func (s *Server) serveConnect(resp http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		log.Println(err)
 		conn.Write([]byte("{\"status\":\"error\",\"message\":\"buffer flush failed\"}\r\n"))
+		conn.Close()
 		return
 	}
 	_, err = obj.Write(bufContent)
 	if err != nil {
 		log.Println(err)
 		conn.Write([]byte("{\"status\":\"error\",\"message\":\"write object failed\"}\r\n"))
+		conn.Close()
 		return
 	}
 	_, err = io.Copy(obj, conn)
 	if err != nil {
 		log.Println(err)
 		conn.Write([]byte("{\"status\":\"error\",\"message\":\"write object failed\"}\r\n"))
+		conn.Close()
 		return
 	}
 }
