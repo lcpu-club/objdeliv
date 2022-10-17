@@ -13,7 +13,7 @@ First install golang building environment.
 Then run:
 
 ```sh
-go -o objdeliv build cmd/main.go
+go build -o objdeliv cmd/main.go
 ```
 
 Move `objdeliv` to `$PATH` and you can use it now.
@@ -203,3 +203,7 @@ Response is in JSON format.
 Just GET `/set-expire?id=[THE_ID]&expire=[EXPIRE_TIME_IN_SECONDS]`.
 
 Response is in JSON format.
+
+### 5. The Golang Client
+
+Please see `objdeliv.go`.
