@@ -63,11 +63,13 @@ func (s *Server) respSuccess(resp http.ResponseWriter, msg string) {
 func (s *Server) serveSetExpire(resp http.ResponseWriter, req *http.Request) {
 	var id uuid.UUID
 	if !req.URL.Query().Has("id") {
+		resp.WriteHeader(400)
 		s.respError(resp, "`id` is needed for this request")
 		return
 	}
 	id, err := uuid.FromString(req.URL.Query().Get("id"))
 	if err != nil {
+		resp.WriteHeader(400)
 		s.respError(resp, "Invalid ID given")
 		return
 	}
@@ -78,11 +80,13 @@ func (s *Server) serveSetExpire(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 	if !req.URL.Query().Has("expire") {
+		resp.WriteHeader(400)
 		s.respError(resp, "`expire` is needed for this request")
 	}
 	exp := req.URL.Query().Get("expire")
 	e, err := strconv.Atoi(exp)
 	if err != nil {
+		resp.WriteHeader(400)
 		s.respError(resp, "Invalid expire duration given")
 		return
 	}
@@ -94,11 +98,13 @@ func (s *Server) serveSetExpire(resp http.ResponseWriter, req *http.Request) {
 func (s *Server) serveRelease(resp http.ResponseWriter, req *http.Request) {
 	var id uuid.UUID
 	if !req.URL.Query().Has("id") {
+		resp.WriteHeader(400)
 		s.respError(resp, "ID needed for this request")
 		return
 	}
 	id, err := uuid.FromString(req.URL.Query().Get("id"))
 	if err != nil {
+		resp.WriteHeader(400)
 		s.respError(resp, "Invalid ID given")
 		return
 	}
@@ -110,6 +116,7 @@ func (s *Server) serveRelease(resp http.ResponseWriter, req *http.Request) {
 	}
 	err = s.storageDriver.ReleaseObject(id)
 	if err != nil {
+		resp.WriteHeader(500)
 		s.respError(resp, "Cannot release object "+id.String())
 		return
 	}
@@ -119,11 +126,13 @@ func (s *Server) serveRelease(resp http.ResponseWriter, req *http.Request) {
 func (s *Server) serveGet(resp http.ResponseWriter, req *http.Request) {
 	var id uuid.UUID
 	if !req.URL.Query().Has("id") {
+		resp.WriteHeader(400)
 		s.respError(resp, "ID needed for this request")
 		return
 	}
 	id, err := uuid.FromString(req.URL.Query().Get("id"))
 	if err != nil {
+		resp.WriteHeader(400)
 		s.respError(resp, "Invalid ID given")
 		return
 	}
@@ -154,6 +163,7 @@ func (s *Server) serveGet(resp http.ResponseWriter, req *http.Request) {
 	resp.WriteHeader(200)
 	r, err := s.storageDriver.GetObject(id)
 	if err != nil {
+		resp.WriteHeader(500)
 		s.respError(resp, "Cannot get object from storage")
 		log.Println(err)
 		return
