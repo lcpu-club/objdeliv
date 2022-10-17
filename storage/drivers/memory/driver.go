@@ -21,6 +21,9 @@ func (d *MemoryDriver) GetName() string {
 }
 
 func (d *MemoryDriver) NewObject(id uuid.UUID) (io.WriteCloser, error) {
+	if ok, _ := d.IsExist(id); ok {
+		return nil, storage.ErrAlreadyExist
+	}
 	builder := &strings.Builder{}
 	return storage.NewCallbackWriteCloser(builder, func(w io.Writer) error {
 		b, ok := w.(*strings.Builder)

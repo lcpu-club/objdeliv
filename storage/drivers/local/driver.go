@@ -26,6 +26,9 @@ func (d *LocalDriver) calculatePath(id uuid.UUID) string {
 
 func (d *LocalDriver) NewObject(id uuid.UUID) (io.WriteCloser, error) {
 	path := d.calculatePath(id)
+	if ok, _ := d.IsExist(id); ok {
+		return nil, storage.ErrAlreadyExist
+	}
 	return os.OpenFile(path, os.O_CREATE|os.O_WRONLY, os.FileMode(0666))
 }
 

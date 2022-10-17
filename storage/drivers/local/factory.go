@@ -2,7 +2,6 @@ package local
 
 import (
 	"fmt"
-	"io/fs"
 	"os"
 
 	"github.com/lcpu-club/objdeliv/storage"
@@ -25,7 +24,7 @@ func Factory(conf storage.DriverConfigure) (storage.Driver, error) {
 	}
 	_, err := os.Stat(path)
 	if os.IsNotExist(err) {
-		err = os.Mkdir(path, fs.FileMode(0666))
+		err = os.MkdirAll(path, os.ModePerm)
 	}
 	if err != nil {
 		return nil, err
