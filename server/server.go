@@ -51,7 +51,7 @@ func (s *Server) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 }
 
 func (s *Server) respError(resp http.ResponseWriter, msg string) {
-	resp.WriteHeader(200)
+	// resp.WriteHeader(200)
 	resp.Write([]byte("{\"status\":\"error\",\"message\":\"" + msg + "\"}"))
 }
 
@@ -73,6 +73,7 @@ func (s *Server) serveSetExpire(resp http.ResponseWriter, req *http.Request) {
 	}
 	ok, err := s.storageDriver.IsExist(id)
 	if !ok || err != nil {
+		resp.WriteHeader(404)
 		s.respError(resp, "No such ID")
 		return
 	}
@@ -103,6 +104,7 @@ func (s *Server) serveRelease(resp http.ResponseWriter, req *http.Request) {
 	}
 	ok, err := s.storageDriver.IsExist(id)
 	if !ok || err != nil {
+		resp.WriteHeader(404)
 		s.respError(resp, "No such ID")
 		return
 	}
@@ -127,6 +129,7 @@ func (s *Server) serveGet(resp http.ResponseWriter, req *http.Request) {
 	}
 	ok, err := s.storageDriver.IsExist(id)
 	if !ok || err != nil {
+		resp.WriteHeader(404)
 		s.respError(resp, "No such ID")
 		return
 	}
